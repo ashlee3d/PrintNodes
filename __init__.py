@@ -48,14 +48,14 @@ Image.MAX_IMAGE_PIXELS = None # disable max resolution limit from PIL. Comes in 
 
 def MakeDirectory(): # Manage Directory for saving screenshots
 
-    if bpy.data.filepath and bpy.context.preferences.addons[__name__].preferences.force_secondary_dir == False: 
+    if bpy.data.filepath and bpy.context.preferences.addons[__name__].preferences.force_secondary_dir == False:
         # save image in the place where the blendfile is saved, in a newly created subfolder (if saved and force_default_directory is set to false)
         Directory = os.path.join(os.path.split(bpy.data.filepath)[0], 'NodesShots')
-        
+
         if os.path.isdir(Directory) == False:
             os.mkdir(Directory)
-            
-    else:  
+
+    else:
         # just use the secondary directory otherwise
         Directory = bpy.context.preferences.addons[__name__].preferences.secondary_save_dir
 
@@ -90,6 +90,15 @@ class PRTND_PT_Preferences(AddonPreferences): # setting up perferences
         soft_max=1.0,
         soft_min=0.0,
     )
+    node_bg_color: FloatVectorProperty(
+        name="Node BG Color",
+        description="Set this to override the background color for the screenshot.",
+        size=3,
+        subtype='COLOR',
+        default=[1.0,1.0,1.0],
+        soft_max=1.0,
+        soft_min=0.0,
+    )
 
     disable_auto_crop: BoolProperty(
         name = 'Disable Auto Cropping',
@@ -106,16 +115,17 @@ class PRTND_PT_Preferences(AddonPreferences): # setting up perferences
         layout.prop(self, "force_secondary_dir")
         layout.separator()
         layout.prop(self, "node_outline_color")
+        layout.prop(self, "node_bg_color");
         layout.separator()
         layout.prop(self, "padding_amount")
         layout.prop(self, "disable_auto_crop")
 
 
-class PRTND_MT_ContextMenu(Menu): 
+class PRTND_MT_ContextMenu(Menu):
     """Context Menu For Print Nodes"""
     bl_idname = "PRTND_MT_context_menu"
     bl_label = "PrintNodes"
-    
+
     def draw(self, context):
         layout = self.layout
         layout.operator(PRTND_OT_ModalScreenshotTimer.bl_idname, text = "Take Screenshot Of Whole Tree", icon = "NODETREE")
@@ -149,15 +159,17 @@ class PRTND_OT_ModalScreenshotTimer(Operator): # modal operator to take parts of
     current_ui:bool
     current_overlay:bool
     current_wire_select_color:tuple
-    currnet_node_selected:tuple
-    currnet_node_active:tuple
+    current_bg_color:tuple
+    current_node_selected:tuple
+    current_node_active:tuple
 
     def store_current_settings(self, context):
         self.current_grid_level = context.preferences.themes[0].node_editor.grid_levels
         self.current_scroll_color = tuple(context.preferences.themes[0].user_interface.wcol_scroll.item)
         self.current_wire_select_color = tuple(context.preferences.themes[0].node_editor.wire_select)
-        self.currnet_node_selected = tuple(context.preferences.themes[0].node_editor.node_selected)
-        self.currnet_node_active = tuple(context.preferences.themes[0].node_editor.node_active)
+        self.current_bg_color = tuple(context.preferences.themes[0].node_editor.space.back)
+        self.current_node_selected = tuple(context.preferences.themes[0].node_editor.node_selected)
+        self.current_node_active = tuple(context.preferences.themes[0].node_editor.node_active)
         self.current_header = context.space_data.show_region_header
         self.current_toolbar = context.space_data.show_region_toolbar
         self.current_ui = context.space_data.show_region_ui
@@ -167,8 +179,9 @@ class PRTND_OT_ModalScreenshotTimer(Operator): # modal operator to take parts of
         context.preferences.themes[0].node_editor.grid_levels = self.current_grid_level
         context.preferences.themes[0].user_interface.wcol_scroll.item = self.current_scroll_color
         context.preferences.themes[0].node_editor.wire_select = self.current_wire_select_color
-        context.preferences.themes[0].node_editor.node_selected = self.currnet_node_selected
-        context.preferences.themes[0].node_editor.node_active = self.currnet_node_active
+        context.preferences.themes[0].node_editor.space.back = self.current_bg_color
+        context.preferences.themes[0].node_editor.node_selected = self.current_node_selected
+        context.preferences.themes[0].node_editor.node_active = self.current_node_active
         context.space_data.show_region_header = self.current_header
         context.space_data.show_region_ui = self.current_ui
         context.space_data.overlay.show_context_path = self.current_overlay
@@ -177,10 +190,12 @@ class PRTND_OT_ModalScreenshotTimer(Operator): # modal operator to take parts of
         pref = bpy.context.preferences.addons[__name__].preferences
 
         context.preferences.themes[0].node_editor.grid_levels = 0 # turn gridlines off, trimming empty space doesn't work otherwise
+        context.preferences.themes[0].node_editor.grid_levels = 0 # turn gridlines off, trimming empty space doesn't work otherwise
         context.preferences.themes[0].user_interface.wcol_scroll.item = (0, 0, 0, 0)
         context.preferences.themes[0].node_editor.wire_select = (0, 0, 0, 0)
         context.preferences.themes[0].node_editor.node_selected = pref.node_outline_color
         context.preferences.themes[0].node_editor.node_active = pref.node_outline_color
+        context.preferences.themes[0].node_editor.space.back = pref.node_bg_color
         context.space_data.overlay.show_context_path = False
         context.space_data.show_region_header = False
         context.space_data.show_region_ui = False
@@ -194,13 +209,13 @@ class PRTND_OT_ModalScreenshotTimer(Operator): # modal operator to take parts of
         Ymax:float
         Xmin = Xmax = nodes[0].location[0]
         Ymin = Ymax = nodes[0].location[1]
-    
+
 
         for i in range(len(nodes)):
             loc = nodes[i].location
             locX = loc[0]
             locY = loc[1]
-            
+
             if locX < Xmin:
                 Xmin = locX
             if locY < Ymin:
@@ -210,7 +225,7 @@ class PRTND_OT_ModalScreenshotTimer(Operator): # modal operator to take parts of
                 Xmax = locX
             if locY > Ymax:
                 Ymax = locY
-        
+
         return Xmin, Ymin, Xmax, Ymax
 
     def modal(self, context, event):
@@ -226,14 +241,14 @@ class PRTND_OT_ModalScreenshotTimer(Operator): # modal operator to take parts of
             area = bpy.context.area
             dx = area.width - 1
             dy = area.height - 1
-            
+
             path = os.path.join(MakeDirectory(), f'Prt_y{self.iy}_x{self.ix}.png')
             bpy.ops.screen.screenshot_area(filepath=path) # take screenshot of current view as a 'tile' to be further stitched and processed
 
             if tree.view_center[1] > self.Ymax and tree.view_center[0] > self.Xmax: # check if already at the other corner of the tree, if yes, sucessfully terminate
                 self.cancel(context)
                 return {'CANCELLED'}
-            
+
             if tree.view_center[0] > self.Xmax: # if exceeded rightmost edge, pan all the way back to leftmost edge and pan y up once to prepare for the next 'layer' of tiles
                 bpy.ops.view2d.pan(deltax = -(self.ix*dx), deltay=dy)
                 self.ix = 0
@@ -252,14 +267,14 @@ class PRTND_OT_ModalScreenshotTimer(Operator): # modal operator to take parts of
 
         if self.selection_only:
             nodes = context.selected_nodes # perform within the selected nodes only
-        else:  
+        else:
             nodes = context.space_data.edit_tree.nodes # perform within the whole tree
 
 
         self.Xmin, self.Ymin, self.Xmax, self.Ymax = self.find_min_max_coords(nodes)
         tree = context.space_data.edit_tree
 
-        # co-ords from node.location and tree.view_center are apparently not the same (you could say they don't co-ordinate, haha ha...) so I have to make sure I'm using the right ones 
+        # co-ords from node.location and tree.view_center are apparently not the same (you could say they don't co-ordinate, haha ha...) so I have to make sure I'm using the right ones
         node = tree.nodes.new("NodeReroute")
         node.location = self.Xmax, self.Ymax
         select_nodes(nodes,select=False)
@@ -292,7 +307,7 @@ class PRTND_OT_ModalScreenshotTimer(Operator): # modal operator to take parts of
 
     def cancel(self, context):
 
-        if self.forced_cancel: 
+        if self.forced_cancel:
             PrintNodesPopUp(message = "Process Force Cancelled", icon = "CANCEL")
 
         else:
@@ -315,7 +330,7 @@ def TrimImage(img:Image.Image):
 
     padding = bpy.context.preferences.addons[__name__].preferences.padding_amount
     padding_tuple = (-padding, -padding, padding, padding) # to subtract padding amount from x_min, y_min and add to x_max, y_max for cropping
-    
+
     img_w, img_h = img.size
     img_size_tuple = (img_w, img_h, img_w, img_h) # tuple of image size in format (x_min, y_min, x_max, y_max) for clamping padding amount, with some 'hacky' elements
 
