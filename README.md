@@ -31,4 +31,4 @@ Notes
 
 Additional Info
 --
-For any questions, suggestions or bug reports, [join my discord server](https://discord.gg/G8ajxwQuYT) contact me via twitter **@YeetusBlenditus** or e-mail me at **binitnew@gmail.com**
+This is an unofficial fork of the PrintNodes addon and is not supported by the original dev!
