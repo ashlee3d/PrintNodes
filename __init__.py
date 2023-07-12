@@ -1,5 +1,5 @@
-#PrintNodes addon for Blender 2.80+ to take high quality screenshots of node trees
-#Managed by: Binit (aka Yeetus)
+#Fork of PrintNodes addon for Blender 2.80+ to take high-quality screenshots of node trees
+#Managed by: Ashlee3Dee, originally by Binit (aka Yeetus)
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 
 bl_info = {
     "name" : "PrintNodes",
-    "author" : "Binit",
+    "author" : "Binit, Ashlee3Dee",
     "description" : "Takes high quality screenshot of a node tree",
     "blender" : (3, 1, 0),
     "version" : (1, 2, 0),
@@ -366,7 +366,9 @@ def StitchTiles(tile_width, tile_height, num_x, num_y): # function to stitch mul
 
     timestamp = time.strftime("%y%m%d-%H%M%S")
     out_path = os.path.join(folder_path, f'NodeTreeShot{timestamp}.png')
-    out_canvas.save(out_path)
+    #out_canvas.save(out_path) #default export
+    out_canvas.save(out_path, quality=100, subsampling=0) #possibly better image quality, needs testing
+    
 
 
 
